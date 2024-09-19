@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Retro Diagramming Tool</title>
+    <!-- Include vis.js CDN -->
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <!-- Include jQuery for simplicity -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- Custom CSS -->
+    <style>
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        #app {
+            /* Assuming all your components are wrapped in this div */
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        /* Windows XP Menu Bar Style */
+        .menu-bar {
+            background-color: #D4D0C8;
+            padding: 2px;
+            display: flex;
+            border-bottom: 2px solid #FFFFFF;
+            box-shadow: inset 0 1px 0 #FFFFFF, inset 0 -1px 0 #808080;
+        }
+
+        .menu-bar .menu {
+            position: relative;
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+
+        .menu-bar .menu:hover {
+            background-color: #0A246A;
+            color: white;
+        }
+
+        .menu-bar .submenu {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            background-color: #D4D0C8;
+            border: 1px solid #808080;
+            min-width: 150px;
+            z-index: 1000;
+        }
+
+        .menu-bar .submenu .submenu-item {
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+
+        .menu-bar .submenu .submenu-item:hover {
+            background-color: #0A246A;
+            color: white;
+        }
+
+        .menu-bar .menu:hover .submenu {
+            display: block;
+        }
+
+        /* Windows XP Toolbar Style */
+        .toolbar {
+            background-color: #D4D0C8;
+            padding: 5px;
+            border-bottom: 2px solid #FFFFFF;
+            box-shadow: inset 0 1px 0 #FFFFFF, inset 0 -1px 0 #808080;
+            display: flex;
+            align-items: center;
+        }
+
+        .toolbar button {
+            background-color: #D4D0C8;
+            border: 1px solid #808080;
+            padding: 5px 10px;
+            margin-right: 5px;
+            cursor: pointer;
+        }
+
+        .toolbar button:active {
+            border: 1px solid #FFFFFF;
+            box-shadow: inset 1px 1px 2px #808080;
+        }
+
+        /* Container for side panel, network, and details panel */
+        .container {
+            display: flex;
+            height: calc(100vh - 95px);
+        }
+
+        /* Side Panel */
+        .side-panel {
+            width: 200px;
+            background-color: #D4D0C8;
+            border-right: 2px solid #FFFFFF;
+            box-shadow: inset 1px 0 0 #808080;
+            overflow-y: auto;
+            padding: 5px;
+        }
+
+        .side-panel h3 {
+            margin-top: 0;
+            font-size: 14px;
+        }
+
+        .side-panel ul {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        .side-panel li {
+            padding: 5px;
+            cursor: pointer;
+        }
+
+        .side-panel li.selected {
+            background-color: #0A246A;
+            color: white;
+        }
+
+        /* Indentation */
+        .indent-0 {
+            margin-left: 0px;
+        }
+
+        .indent-1 {
+            margin-left: 15px;
+        }
+
+        .indent-2 {
+            margin-left: 30px;
+        }
+
+        .indent-3 {
+            margin-left: 45px;
+        }
+
+        .indent-4 {
+            margin-left: 60px;
+        }
+
+        /* Main Content Area */
+        #network {
+            flex-grow: 1;
+            background-color: #FFFFFF;
+            position: relative;
+        }
+
+        .right-panel {
+            width: 200px;
+            display: flex;
+            flex-direction: column;
+            background-color: #D4D0C8;
+            border-left: 2px solid #FFFFFF;
+            box-shadow: inset -1px 0 0 #808080;
+        }
+
+        .details-panel,
+        .node-details-panel {
+            flex: 0 0 50%;
+            /* Makes each panel take exactly 50% of the height */
+            overflow-y: auto;
+            /* Allows for scrolling within each panel */
+            padding: 10px;
+        }
+
+        .right-toolbar {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            /* 2 columns */
+            grid-gap: 5px;
+            padding: 5px;
+        }
+
+        .right-toolbar button {
+            background-color: #D4D0C8;
+            border: 1px solid #808080;
+            aspect-ratio: 1;
+            /* Ensures the buttons are square */
+            flex-grow: 1;
+            padding: 10px;
+            cursor: pointer;
+        }
+
+        .right-toolbar button:active {
+            border: 1px solid #FFFFFF;
+            box-shadow: inset 1px 1px 2px #808080;
+        }
+
+        .details-panel {
+            overflow-y: auto;
+            padding: 5px;
+            flex-grow: 1;
+            /* Allows this section to take up the rest of the space */
+        }
+
+        .details-panel h3 {
+            margin-top: 10px;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+
+        .details-panel label {
+            display: block;
+            margin-top: 10px;
+        }
+
+        .details-panel input {
+            width: 100%;
+        }
+
+        .node-details-panel {
+            flex-grow: 4;
+            /* Takes majority of the space in the right panel */
+            overflow-y: auto;
+            padding: 5px;
+        }
+
+        .node-details-panel h3 {
+            margin-top: 0;
+            /* Adjust according to your preference */
+            font-size: 14px;
+        }
+
+        .node-details-panel label {
+            display: block;
+            margin-top: 10px;
+        }
+
+        .node-details-panel input {
+            width: 100%;
+        }
+
+
+        /* Tabs for Window Switching */
+        .tabs {
+            background-color: #D4D0C8;
+            border-bottom: 2px solid #FFFFFF;
+            display: flex;
+        }
+
+        .tab {
+            padding: 5px 10px;
+            cursor: pointer;
+            border-right: 1px solid #808080;
+        }
+
+        .tab.selected {
+            background-color: #0A246A;
+            color: white;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="menu-bar">
+        <div class="menu">File
+            <div class="submenu">
+                <div class="submenu-item" id="menu-new">New</div>
+                <div class="submenu-item" id="menu-open">Open</div>
+                <div class="submenu-item" id="menu-save">Save</div>
+            </div>
+        </div>
+        <div class="menu">Edit
+            <div class="submenu">
+                <div class="submenu-item">Undo</div>
+                <div class="submenu-item">Redo</div>
+            </div>
+        </div>
+        <div class="menu">Window
+            <div class="submenu">
+                <div class="submenu-item">1</div>
+                <div class="submenu-item">2</div>
+                <div class="submenu-item">3</div>
+            </div>
+        </div>
+        <div class="menu">About
+            <div class="submenu">
+                <div class="submenu-item">1</div>
+                <div class="submenu-item">2</div>
+                <div class="submenu-item">3</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="tabs">
+        <div class="tab selected" id="tab-system">System Architecture</div>
+        <div class="tab" id="tab-mission">Mission Architecture</div>
+    </div>
+
+    <div class="container">
+        <div class="side-panel">
+            <h3>Node Explorer</h3>
+            <ul id="node-list">
+                <!-- Node list items will be inserted here -->
+            </ul>
+        </div>
+        <div id="network"></div>
+        <div class="right-panel">
+            <div class="details-panel">
+                <h3>Tool Bar</h3>
+                <div class="right-toolbar">
+                    
+                </div>
+            </div>
+            <div class="node-details-panel">
+                <h3>Node Details</h3>
+                <div id="node-details">
+                    <p>Select a node to see details.</p>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- JavaScript Code -->
+    <script type="text/javascript">
+        // Data for System Architecture
+        var systemNodes = new vis.DataSet();
+        var systemEdges = new vis.DataSet();
+
+        // Data for Mission Architecture
+        var missionNodes = new vis.DataSet();
+        var missionEdges = new vis.DataSet();
+
+        // Current Data
+        var nodes = systemNodes;
+        var edges = systemEdges;
+        var currentArchitecture = 'System'; // 'System' or 'Mission'
+
+        var container = document.getElementById('network');
+        var data = {
+            nodes: nodes,
+            edges: edges
+        };
+        var options = {
+            physics: true, // Turn off physics
+            nodes: {
+                shape: 'box',
+                color: '#B19CD9',
+                font: {
+                    color: '#000000'
+                },
+                fixed: {
+                    x: false,
+                    y: false
+                },
+                margin: 10
+            },
+            edges: {
+                arrows: 'to'
+            },
+            interaction: {
+                multiselect: true,
+                selectConnectedEdges: false
+            },
+            manipulation: {
+                enabled: false
+            }
+        };
+        var network = new vis.Network(container, data, options);
+
+        // Function to update the node list in the side panel
+        function updateNodeList() {
+            var nodeList = document.getElementById('node-list');
+            nodeList.innerHTML = '';
+            var nodeData = nodes.get();
+            var nodeMap = {};
+            nodeData.forEach(function (node) {
+                nodeMap[node.id] = node;
+            });
+            function buildNodeTree(parentId, depth) {
+                nodeData.forEach(function (node) {
+                    if ((node.parent || null) === parentId) {
+                        var li = document.createElement('li');
+                        li.textContent = node.label;
+                        li.dataset.id = node.id;
+                        li.classList.add('indent-' + depth);
+                        li.onclick = function () {
+                            selectNode(node.id);
+                        };
+                        if (network.getSelectedNodes().indexOf(node.id) !== -1) {
+                            li.classList.add('selected');
+                        }
+                        nodeList.appendChild(li);
+                        buildNodeTree(node.id, depth + 1);
+                    }
+                });
+            }
+            buildNodeTree(null, 0);
+        }
+
+        // Function to select a node
+        function selectNode(nodeId) {
+            network.selectNodes([nodeId]);
+            showNodeDetails(nodeId);
+            updateNodeList();
+        }
+
+        // Function to show node details
+        function showNodeDetails(nodeId) {
+            var node = nodes.get(nodeId);
+            var detailsDiv = document.getElementById('node-details');
+            detailsDiv.innerHTML = '';
+
+            // Label
+            var labelLabel = document.createElement('label');
+            labelLabel.textContent = 'Label:';
+            var labelInput = document.createElement('input');
+            labelInput.type = 'text';
+            labelInput.value = node.label;
+            labelInput.onchange = function () {
+                nodes.update({
+                    id: nodeId,
+                    label: labelInput.value
+                });
+                updateNodeList();
+            };
+            detailsDiv.appendChild(labelLabel);
+            detailsDiv.appendChild(labelInput);
+
+            // Width
+            var widthLabel = document.createElement('label');
+            widthLabel.textContent = 'Width:';
+            var widthInput = document.createElement('input');
+            widthInput.type = 'number';
+            widthInput.value = node.widthConstraint ? node.widthConstraint.minimum : 100;
+            widthInput.onchange = function () {
+                nodes.update({
+                    id: nodeId,
+                    widthConstraint: { minimum: parseInt(widthInput.value) }
+                });
+            };
+            detailsDiv.appendChild(widthLabel);
+            detailsDiv.appendChild(widthInput);
+
+            // Height
+            var heightLabel = document.createElement('label');
+            heightLabel.textContent = 'Height:';
+            var heightInput = document.createElement('input');
+            heightInput.type = 'number';
+            heightInput.value = node.heightConstraint ? node.heightConstraint.minimum : 50;
+            heightInput.onchange = function () {
+                nodes.update({
+                    id: nodeId,
+                    heightConstraint: { minimum: parseInt(heightInput.value) }
+                });
+            };
+            detailsDiv.appendChild(heightLabel);
+            detailsDiv.appendChild(heightInput);
+
+            // Description for Mission Architecture
+            if (currentArchitecture === 'Mission') {
+                var descriptionLabel = document.createElement('label');
+                descriptionLabel.textContent = 'Description:';
+                var descriptionTextarea = document.createElement('textarea');
+                descriptionTextarea.value = node.description || '';
+                descriptionTextarea.onchange = function () {
+                    nodes.update({
+                        id: nodeId,
+                        description: descriptionTextarea.value
+                    });
+                };
+                detailsDiv.appendChild(descriptionLabel);
+                detailsDiv.appendChild(descriptionTextarea);
+            }
+        }
+
+        // Generate a unique ID
+        function generateUniqueId() {
+            return crypto.randomUUID();
+        }
+
+        // Adjust parent size recursively to fit all descendants
+        function adjustParentSizeToFitChildRecursive(nodeId) {
+            var node = nodes.get(nodeId);
+            var childNodes = nodes.get({
+                filter: function (item) {
+                    return item.parent === nodeId;
+                }
+            });
+            if (childNodes.length > 0) {
+                // Calculate bounding box of all descendants
+                var descendantIds = getDescendantIds(nodeId);
+                var positions = network.getPositions(descendantIds);
+                var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+                descendantIds.forEach(function (id) {
+                    var descendantNode = nodes.get(id);
+                    var pos = positions[id];
+                    var width = descendantNode.widthConstraint ? descendantNode.widthConstraint.minimum : 100;
+                    var height = descendantNode.heightConstraint ? descendantNode.heightConstraint.minimum : 50;
+                    minX = Math.min(minX, pos.x - width / 2);
+                    minY = Math.min(minY, pos.y - height / 2);
+                    maxX = Math.max(maxX, pos.x + width / 2);
+                    maxY = Math.max(maxY, pos.y + height / 2);
+                });
+                // Update current node size
+                var newWidth = (maxX - minX) + 50;
+                var newHeight = (maxY - minY) + 50;
+                nodes.update({
+                    id: nodeId,
+                    widthConstraint: { minimum: newWidth },
+                    heightConstraint: { minimum: newHeight }
+                });
+            }
+            // Recursively adjust parent
+            if (node.parent) {
+                adjustParentSizeToFitChildRecursive(node.parent);
+            }
+        }
+
+        // Get all descendant node IDs
+        function getDescendantIds(nodeId) {
+            var ids = [];
+            var childNodes = nodes.get({
+                filter: function (item) {
+                    return item.parent === nodeId;
+                }
+            });
+            childNodes.forEach(function (childNode) {
+                ids.push(childNode.id);
+                ids = ids.concat(getDescendantIds(childNode.id));
+            });
+            return ids;
+        }
+
+        // Variable to prevent recursive calls
+        var isUpdatingPositions = false;
+
+        // Update node selection in side panel when selection changes
+        network.on("selectNode", function (params) {
+            var nodeId = params.nodes[0];
+            showNodeDetails(nodeId);
+            updateNodeList();
+        });
+
+        network.on("deselectNode", function (params) {
+            var detailsDiv = document.getElementById('node-details');
+            detailsDiv.innerHTML = '<p>Select a node to see details.</p>';
+            updateNodeList();
+        });
+
+        // Double-click to edit node label
+        network.on("doubleClick", function (params) {
+            if (params.nodes.length == 1) {
+                var nodeId = params.nodes[0];
+                var node = nodes.get(nodeId);
+                var label = prompt('Edit node label:', node.label);
+                if (label !== null) {
+                    nodes.update({
+                        id: nodeId,
+                        label: label
+                    });
+                    updateNodeList();
+                }
+            }
+        });
+
+        // Move children with parent during drag
+        network.on("dragStart", function (params) {
+            if (params.nodes.length > 0) {
+                storeChildOffsets(params.nodes[0]);
+            }
+        });
+
+        network.on("dragging", function (params) {
+            if (isUpdatingPositions) return;
+            if (params.nodes.length > 0) {
+                isUpdatingPositions = true; // Set the flag to prevent recursion
+                var movedNodeId = params.nodes[0];
+                var parentPosition = network.getPositions([movedNodeId])[movedNodeId];
+                nodes.update({
+                    id: movedNodeId,
+                    x: parentPosition.x,
+                    y: parentPosition.y
+                });
+                updateChildPositions(movedNodeId, parentPosition);
+                isUpdatingPositions = false; // Reset the flag
+            }
+        });
+
+        function storeChildOffsets(parentId) {
+            var parentPosition = network.getPositions([parentId])[parentId];
+            var childNodes = nodes.get({
+                filter: function (item) {
+                    return item.parent === parentId;
+                }
+            });
+            childNodes.forEach(function (childNode) {
+                var childPosition = network.getPositions([childNode.id])[childNode.id];
+                childNode.offsetX = childPosition.x - parentPosition.x;
+                childNode.offsetY = childPosition.y - parentPosition.y;
+                nodes.update(childNode);
+                // Recursively store offsets for grandchildren
+                storeChildOffsets(childNode.id);
+            });
+        }
+
+        function updateChildPositions(parentId, parentPosition) {
+            var childNodes = nodes.get({
+                filter: function (item) {
+                    return item.parent === parentId;
+                }
+            });
+            childNodes.forEach(function (childNode) {
+                var offsetX = childNode.offsetX || 0;
+                var offsetY = childNode.offsetY || 0;
+
+                var newX = parentPosition.x + offsetX;
+                var newY = parentPosition.y + offsetY;
+
+                nodes.update({
+                    id: childNode.id,
+                    x: newX,
+                    y: newY
+                });
+
+                // Recursively update grandchildren
+                var childPosition = {
+                    x: newX,
+                    y: newY
+                };
+                updateChildPositions(childNode.id, childPosition);
+            });
+        }
+
+        // Initial update of the node list
+        updateNodeList();
+
+        // Menu Bar Functionality
+        $(document).ready(function () {
+
+            var initialTab = $('.tab.selected').attr('id');
+            updateToolBar(initialTab);
+
+            $('.submenu-item').click(function (e) {
+                e.stopPropagation(); // Prevent menu from closing
+            });
+
+            // Import/Export Functionality
+            $('#menu-save').click(function () {
+                var dataToSave = {
+                    systemNodes: systemNodes.get(),
+                    systemEdges: systemEdges.get(),
+                    missionNodes: missionNodes.get(),
+                    missionEdges: missionEdges.get()
+                };
+                var dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(dataToSave));
+                var downloadAnchorNode = document.createElement('a');
+                downloadAnchorNode.setAttribute("href", dataStr);
+                downloadAnchorNode.setAttribute("download", "diagram.json");
+                document.body.appendChild(downloadAnchorNode); // Required for Firefox
+                downloadAnchorNode.click();
+                downloadAnchorNode.remove();
+            });
+
+            $('#menu-open').click(function () {
+                var input = document.createElement('input');
+                input.type = 'file';
+                input.accept = '.json';
+                input.onchange = function (event) {
+                    var file = event.target.files[0];
+                    var reader = new FileReader();
+                    reader.onload = function (e) {
+                        var content = e.target.result;
+                        var data = JSON.parse(content);
+
+                        // Clear existing data
+                        systemNodes.clear();
+                        systemEdges.clear();
+                        missionNodes.clear();
+                        missionEdges.clear();
+
+                        // Restore system architecture
+                        if (data.systemNodes && data.systemEdges) {
+                            systemNodes.add(data.systemNodes);
+                            systemEdges.add(data.systemEdges);
+                        }
+
+                        // Restore mission architecture
+                        if (data.missionNodes && data.missionEdges) {
+                            missionNodes.add(data.missionNodes);
+                            missionEdges.add(data.missionEdges);
+                        }
+
+                        // Update the current view
+                        if (currentArchitecture === 'System') {
+                            nodes = systemNodes;
+                            edges = systemEdges;
+                        } else {
+                            nodes = missionNodes;
+                            edges = missionEdges;
+                        }
+                        data = {
+                            nodes: nodes,
+                            edges: edges
+                        };
+                        network.setData(data);
+                        updateNodeList();
+                        document.getElementById('node-details').innerHTML = '<p>Select a node to see details.</p>';
+                    };
+                    reader.readAsText(file);
+                };
+                input.click();
+            });
+
+            $('#menu-new').click(function () {
+                if (confirm('Are you sure you want to create a new diagram? Unsaved changes will be lost.')) {
+                    systemNodes.clear();
+                    systemEdges.clear();
+                    missionNodes.clear();
+                    missionEdges.clear();
+                    opDataNodes.clear();
+                    opDataEdges.clear();
+                    updateNodeList();
+                    nodes = currentArchitecture === 'System' ? systemNodes : missionNodes;
+                    edges = currentArchitecture === 'System' ? systemEdges : missionEdges;
+                    data = {
+                        nodes: nodes,
+                        edges: edges
+                    };
+                    network.setData(data);
+                    document.getElementById('node-details').innerHTML = '<p>Select a node to see details.</p>';
+                }
+            });
+
+            // Tab Switching
+            $('.tab').click(function () {
+                $('.tab').removeClass('selected');
+                $(this).addClass('selected');
+                var currentTabId = $(this).attr('id');
+                if (currentTabId === 'tab-system') {
+                    nodes = systemNodes;
+                    edges = systemEdges;
+                    currentArchitecture = 'System';
+                } else if (currentTabId === 'tab-mission') {
+                    nodes = missionNodes;
+                    edges = missionEdges;
+                    currentArchitecture = 'Mission';
+                }
+                data = {
+                    nodes: nodes,
+                    edges: edges
+                };
+                network.setData(data);
+                updateNodeList();
+                document.getElementById('node-details').innerHTML = '<p>Select a node to see details.</p>';
+                updateToolBar(currentTabId); // Update the toolbar based on the selected tab
+            });
+
+
+            // Function to update the tool bar
+            function updateToolBar(currentTab) {
+            var toolbarHtml = '';
+            if (currentTab === 'tab-system') {
+                toolbarHtml = `
+                    <button id="add-system">Add System</button>
+                    <button id="add-child-system">Add Child System</button>
+                    <button id="add-edge">Add Connection</button>
+                    <button id="delete-selected">Delete Selected</button>
+                `;
+            } else if (currentTab === 'tab-mission') {
+                toolbarHtml = `
+                    <button id="add-mission">Add Mission</button>
+                    <button id="add-op-data">Add Op Data</button>
+                    <button id="add-edge">Add Connection</button>
+                    <button id="delete-selected">Delete Selected</button>
+                `;
+            }
+            $('.right-toolbar').html(toolbarHtml);
+            attachEventHandlersToButtons();
+        }
+
+        function attachEventHandlersToButtons() {
+            $('#add-system').click(function () {
+                if (currentArchitecture !== 'System') {
+                alert('Systems can only be added in the System Architecture tab.');
+                return;
+                }
+                var id = generateUniqueId();
+                var label = prompt('Enter system label:');
+                if (label) {
+                    var position = network.getViewPosition();
+                    var nodeData = {
+                        id: id,
+                        label: label,
+                        shape: 'box',
+                        widthConstraint: { minimum: 100 },
+                        heightConstraint: { minimum: 50 },
+                        x: position.x,
+                        y: position.y,
+                        fixed: {
+                            x: false,
+                            y: false
+                        },
+                        architecture: currentArchitecture
+                    };
+                    nodes.add(nodeData);
+                    updateNodeList();
+                }
+            });
+            $('#add-mission').click(function () {
+                if (currentArchitecture !== 'Mission') {
+                    alert('Missions can only be added in the Mission Architecture tab.');
+                    return;
+                }
+                var id = generateUniqueId();
+                var label = prompt('Enter mission label:');
+                if (label) {
+                    var position = network.getViewPosition();
+                    var nodeData = {
+                        id: id,
+                        label: label,
+                        shape: 'ellipse', // Changed from 'circle' to 'ellipse' for a more distinct shape
+                        size: 25,
+                        x: position.x,
+                        y: position.y,
+                        fixed: {
+                            x: false,
+                            y: false
+                        },
+                        architecture: currentArchitecture,
+                        color: '#E6E6FA'  // Light purple color
+                    };
+                    nodes.add(nodeData);
+                    console.log('Nodes: ', nodes);
+                    updateNodeList();
+                }
+            });
+            $('#add-op-data').click(function () {
+                if (currentArchitecture !== 'Mission') {
+                    alert('Op Data can only be added in the Mission Architecture tab.');
+                    return;
+                }
+                var id = generateUniqueId();
+                var label = prompt('Enter operational data label:');
+                if (label) {
+                    var position = network.getViewPosition();
+                    var nodeData = {
+                        id: id,
+                        label: label,
+                        shape: 'ellipse',
+                        size: 25,
+                        x: position.x,
+                        y: position.y,
+                        fixed: {
+                            x: false,
+                            y: false
+                        },
+                        architecture: 'Operational Data',
+                        color: '#FFA500'
+                    };
+                    nodes.add(nodeData);
+                    console.log('Nodes: ', nodes);
+                    updateNodeList();
+                }
+            });
+            $('#add-child-system').click(function () {
+                var selectedNodes = network.getSelectedNodes();
+                if (selectedNodes.length == 1 && nodes.get(selectedNodes[0]).architecture === 'System') {
+                    var parentId = selectedNodes[0];
+                    var parentNode = nodes.get(parentId);
+                    var id = generateUniqueId();
+                    var label = prompt('Enter child system label:');
+                    if (label) {
+                        var parentPosition = network.getPositions([parentId])[parentId];
+                        nodes.add({
+                            id: id,
+                            label: label,
+                            shape: 'box',
+                            parent: parentId,
+                            x: parentPosition.x,
+                            y: parentPosition.y,
+                            widthConstraint: { minimum: 80 },
+                            heightConstraint: { minimum: 40 },
+                            fixed: {
+                                x: false,
+                                y: false
+                            },
+                            architecture: currentArchitecture
+                        });
+                        updateNodeList();
+                        adjustParentSizeToFitChildRecursive(parentId);
+                    }
+                } else {
+                    alert('Please select exactly one parent system node to add a child.');
+                }
+            });
+            $('#add-edge').click(function () {
+                var selectedNodes = network.getSelectedNodes();
+                if (selectedNodes.length == 2) {
+                    edges.add({
+                        from: selectedNodes[0],
+                        to: selectedNodes[1]
+                    });
+                } else {
+                    alert('Please select exactly two nodes to connect.');
+                }
+            });
+            $('#delete-selected').click(function () {
+                var selectedNodes = network.getSelectedNodes();
+                var selectedEdges = network.getSelectedEdges();
+
+                if (selectedNodes.length === 0 && selectedEdges.length === 0) {
+                    alert('Please select nodes or edges to delete.');
+                } else {
+                    if (confirm('Are you sure you want to delete the selected nodes and edges?')) {
+                        nodes.remove(selectedNodes);
+                        // Delete edges that are connected to the selected nodes
+                        var connectedEdges = edges.get({
+                            filter: function (item) {
+                                return selectedNodes.includes(item.from) || selectedNodes.includes(item.to);
+                            }
+                        });
+
+                        edges.remove(connectedEdges);
+                        edges.remove(selectedEdges)
+                        updateNodeList();
+                        document.getElementById('node-details').innerHTML = '<p>Select a node to see details.</p>';
+                    }
+                }
+            });
+        }
+
+        });
+    </script>
+</body>
+
+</html>
